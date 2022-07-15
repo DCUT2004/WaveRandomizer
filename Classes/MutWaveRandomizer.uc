@@ -367,7 +367,8 @@ function WaveRandomize()
 	else if (Invasion.WaveNum == 13)
 	{
 		Invasion.WaveNumClasses=0;
-		if (Rand(3) == 0)
+		RandIndex = Rand(3);
+		if (RandIndex == 0)
 		{
 			for(i=0;i<16;i++)
 			{
@@ -375,7 +376,7 @@ function WaveRandomize()
 				Invasion.WaveNumClasses++;
 			}
 		}
-		else if (Rand(3) == 1)
+		else if (RandIndex == 1)
 		{
 			for(i=0;i<16;i++)
 			{
