@@ -652,7 +652,7 @@ simulated function HandleBossWave()
 			Level.Game.BroadCast(Self, "Boss: " $ BossPawn.OwnerName);
 			for ( C = Level.ControllerList; C != None; C = C.NextController )
 				if (C != None && C.IsA('PlayerController') )
-					PlayerController(C).ClientPlaySound(Sound'WaveRandomizerv19.Boss.BossWarning');
+					PlayerController(C).ClientPlaySound(Sound'WaveRandomizer999X.Boss.BossWarning');
 		}
 	}
 }
