@@ -17,8 +17,6 @@ var bool SpecialWaveAdded;
 var bool SpecialWaveInitialized;
 
 //Boss and Boss wave variables
-var config Array < class < Monster > > BossOfTheMonth;
-var config int BossOfTheMonthChance;
 var class<Monster> BossClass;
 var Monster BossPawn;
 var config int BossWaveIndex;
@@ -314,45 +312,25 @@ function WaveRandomize()
 	}
 	else if (Invasion.WaveNum == 11)	//Roulette wave. Choose 1 type of monster
 	{
-		RandIndex = RandRange(1, 7);
+		RandIndex = Rand(7);
 		Invasion.WaveNumClasses=0;
 		for(i=0;i<16;i++)
 		{
-			if (RandIndex == 1)
-			{
+			if (RandIndex == 0)
 				Invasion.WaveMonsterClass[Invasion.WaveNumClasses] = KrallClass[Rand(KrallClass.Length)];
-				Invasion.WaveNumClasses++;
-			}
-			else if (RandIndex == 2)
-			{
+			else if (RandIndex == 1)
 				Invasion.WaveMonsterClass[Invasion.WaveNumClasses] = SlithClass[Rand(SlithClass.Length)];
-				Invasion.WaveNumClasses++;
-			}
-			else if (RandIndex == 3)
-			{
+			else if (RandIndex == 2)
 				Invasion.WaveMonsterClass[Invasion.WaveNumClasses] = BruteClass[Rand(BruteClass.Length)];
-				Invasion.WaveNumClasses++;
-			}
-			else if (RandIndex == 4)
-			{
+			else if (RandIndex == 3)
 				Invasion.WaveMonsterClass[Invasion.WaveNumClasses] = MercenaryClass[Rand(MercenaryClass.Length)];
-				Invasion.WaveNumClasses++;
-			}
-			else if (RandIndex == 5)
-			{
+			else if (RandIndex == 4)
 				Invasion.WaveMonsterClass[Invasion.WaveNumClasses] = GasbagClass[Rand(GasbagClass.Length)];
-				Invasion.WaveNumClasses++;
-			}
-			else if (RandIndex == 6)
-			{
+			else if (RandIndex == 5)
 				Invasion.WaveMonsterClass[Invasion.WaveNumClasses] = SlugClass[Rand(SlugClass.Length)];
-				Invasion.WaveNumClasses++;
-			}
 			else
-			{
 				Invasion.WaveMonsterClass[Invasion.WaveNumClasses] = RazorflyClass[Rand(RazorflyClass.Length)];
-				Invasion.WaveNumClasses++;
-			}
+			Invasion.WaveNumClasses++;
 		}
 	}
 	else if (Invasion.WaveNum == 12)
@@ -589,16 +567,8 @@ function AddBossWave()
 {
 	local int BossIndex;
 
-	if (Rand(100) <= BossOfTheMonthChance)
-	{
-		BossIndex = RandRange(0, BossOfTheMonth.Length);
-		BossClass = BossOfTheMonth[BossIndex];
-	}
-	else
-	{
-		BossIndex = RandRange(0, BossMonsterClass.Length);
-		BossClass = BossMonsterClass[BossIndex];
-	}
+	BossIndex = Rand(BossMonsterClass.Length);
+	BossClass = BossMonsterClass[BossIndex];
 
 	Invasion.Waves[Invasion.WaveNum].WaveMaxMonsters = BOSSWAVEMAXMONSTERS;
 	Invasion.MaxMonsters = BOSSWAVEMAXMONSTERS;
@@ -745,10 +715,8 @@ defaultproperties
      BunnyMonsterClass(0)=Class'SkaarjPack.SkaarjPupae'
      SafeMonsterClass(0)=Class'SkaarjPack.SkaarjPupae'
 	 BossMonsterClass(0)=Class'SkaarjPack.SkaarjPupae'
-	 BossOfTheMonth(0)=Class'SkaarjPack.SkaarjPupae'
      FinalWave=16
      bAdjustFinalWave=True
-	 BossOfTheMonthChance=10
      BossWaveIndex=14
      BossWaveChance=10
      BossHealthAddPerPlayer=5000
