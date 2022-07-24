@@ -57,7 +57,7 @@ event PostBeginPlay()
 	{
 		if (bAdjustFinalWave)
 			Invasion.FinalWave = FinalWave;
-		bBunnyWaveAdded = False;
+		default.bBunnyWaveAdded = False;
 		BonusWaveInitialized = False;
 		BunnyWaveInitialized = False;
 		BossWaveInitialized = False;
@@ -82,7 +82,7 @@ function Timer()
 	local int x;
 	
 	//Increment the Final Wave number if we have BONUS or a Boss Wave
-	if (!SpecialWaveAdded && (bBunnyWaveAdded == True || bBossWaveAdded == True))
+	if (!SpecialWaveAdded && (default.bBunnyWaveAdded == True || bBossWaveAdded == True))
 	{
 		Invasion.FinalWave += 1;
 		if (Invasion.FinalWave > 16)
@@ -118,7 +118,7 @@ function Timer()
 	if (!Invasion.bWaveInProgress && Invasion.WaveCountdown <= 5 && Invasion.WaveNum == FinalWave)
 	{
 		//We are on the last wave. We need to see if either bunny or boss waves are unlocked
-		if (bBunnyWaveAdded && bBossWaveAdded)		//We have both Boss and Bunny waves. Decrement Invasion wave number by 1 so we can fit both of them
+		if (default.bBunnyWaveAdded && bBossWaveAdded)		//We have both Boss and Bunny waves. Decrement Invasion wave number by 1 so we can fit both of them
 		{
 			//Go through the Bunny wave first
 			if (BunnyWaveInitialized == False)
@@ -131,12 +131,12 @@ function Timer()
 				BossWaveInitialized = True;
 			}
 		}
-		else if (bBossWaveAdded && !bBunnyWaveAdded)	//Add just the Boss wave. Do not decrement the invasion wave number
+		else if (bBossWaveAdded && !default.bBunnyWaveAdded)	//Add just the Boss wave. Do not decrement the invasion wave number
 		{
 			if (BossWaveInitialized == False)
 				BossWaveInitialized = True;
 		}
-		else if (!bBossWaveAdded && bBunnyWaveAdded)	//Add just the Bunny wave. Do not decrement the invasion wave number
+		else if (!bBossWaveAdded && default.bBunnyWaveAdded)	//Add just the Bunny wave. Do not decrement the invasion wave number
 		{
 			if (BunnyWaveInitialized == False)
 				BunnyWaveInitialized= True;
@@ -153,7 +153,7 @@ function Timer()
 	}
 	
 	//Below handles the bunny and boss waves
-	if (Invasion.bWaveInProgress && (bBunnyWaveAdded || bBossWaveAdded) && SpecialWaveInitialized)
+	if (Invasion.bWaveInProgress && (default.bBunnyWaveAdded || bBossWaveAdded) && SpecialWaveInitialized)
 	{
 		if (!BunnyWaveCompleted)	//This is the first round of the special wave
 		{
@@ -546,6 +546,16 @@ function WaveBonus()
 	Invasion.Waves[Invasion.WaveNum].WaveMaxMonsters = Waves[Invasion.WaveNum].BonusWaveMaxMonsters;
 	Invasion.MaxMonsters = Waves[Invasion.WaveNum].BonusWaveMaxMonsters;
 	Invasion.Waves[Invasion.WaveNum].WaveDuration = Waves[Invasion.WaveNum].BonusWaveDuration;
+}
+
+static function UnlockBONUSWave()
+{
+	default.bBunnyWaveAdded = true;
+}
+
+static function bool IsBONUSUnlocked()
+{
+	return default.bBunnyWaveAdded;
 }
 
 function AddBunnyWave()
