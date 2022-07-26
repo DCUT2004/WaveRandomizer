@@ -15,6 +15,7 @@ var bool XPRewarded;
 //Special wave 16 variables
 var bool SpecialWaveAdded;
 var bool SpecialWaveInitialized;
+var bool bPlayerReset;
 
 //Boss and Boss wave variables
 var class<Monster> BossClass;
@@ -66,6 +67,7 @@ event PostBeginPlay()
 		SpecialWaveAdded = False;
 		SpecialWaveInitialized = False;
 		XPRewarded = False;
+		bPlayerReset = false;
 		if (Rand(100) <= BossWaveChance)
 			bBossWaveAdded = True;
 		else
@@ -139,7 +141,7 @@ function Timer()
 		else if (!bBossWaveAdded && default.bBunnyWaveAdded)	//Add just the Bunny wave. Do not decrement the invasion wave number
 		{
 			if (BunnyWaveInitialized == False)
-				BunnyWaveInitialized= True;
+				BunnyWaveInitialized = True;
 		}
 		SpecialWaveInitialized = True;
 	}
@@ -184,16 +186,28 @@ function Timer()
 		SpecialWaveInitialized = False;	
 	}
 	
-	if (Invasion.bWaveInProgress && BossWaveInitialized)
+	if (BossWaveInitialized)
 	{
-		//Currently in the middle of a boss wave
-		// Make sure only one boss spawns
-		for (x = 0; x < BossSpawnAttempt && BossPawn == None && !BossSpawned; x++)
-			HandleBossWave();
-		
-		//Reward End-game XP to players for reaching this far. No penalty for dying on bosses
-		if (!XPRewarded)
-			RewardXP();
+		if (Invasion.bWaveInProgress)
+		{
+			//Currently in the middle of a boss wave
+			// Make sure only one boss spawns
+			for (x = 0; x < BossSpawnAttempt && BossPawn == None && !BossSpawned; x++)
+				HandleBossWave();
+			
+			//Reward End-game XP to players for reaching this far. No penalty for dying on bosses
+			if (!XPRewarded)
+				RewardXP();		
+		}
+		else
+		{
+			//In countdown before boss wave
+			//Reset player health and adrenaline
+			if (Invasion.WaveCountdown <= 2 && !bPlayerReset)
+			{
+				ResetPlayerForBoss();
+			}
+		}
 	}
 	
 	if (Invasion.bWaveInProgress && BunnyWaveInitialized && BunnyWaveCompleted && !BossWaveInitialized)
@@ -546,6 +560,23 @@ function WaveBonus()
 	Invasion.Waves[Invasion.WaveNum].WaveMaxMonsters = Waves[Invasion.WaveNum].BonusWaveMaxMonsters;
 	Invasion.MaxMonsters = Waves[Invasion.WaveNum].BonusWaveMaxMonsters;
 	Invasion.Waves[Invasion.WaveNum].WaveDuration = Waves[Invasion.WaveNum].BonusWaveDuration;
+}
+
+function ResetPlayerForBoss()
+{
+	local Controller C, NextC;
+	
+	C = Level.ControllerList;
+	while (C != None)
+	{
+		NextC = C.NextController;
+		if (C.Pawn != None && C.Pawn.Health < C.Pawn.HealthMax)
+			C.Pawn.Health = C.Pawn.HealthMax;
+		if (C.Adrenaline < C.AdrenalineMax)
+			C.Adrenaline = C.AdrenalineMax;
+		C = NextC;
+	}
+	bPlayerReset = true;
 }
 
 static function UnlockBONUSWave()
