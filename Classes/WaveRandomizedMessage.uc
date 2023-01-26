@@ -1,7 +1,7 @@
 class WaveRandomizedMessage extends Localmessage
 	config(satoreMonsterPack);
 
-var(Message) config localized string WaveRandomizedMessage, Wave1Message, Wave2Message, Wave3Message, Wave4Message, Wave5Message, Wave6Message, Wave7Message, Wave8Message, Wave9Message, Wave10Message, Wave11Message, Wave12Message, Wave13Message, Wave14Message, Wave15Message, Wave16Message;
+var(Message) config localized string WaveRandomizedMessage, Wave1Message, Wave2Message, Wave3Message, Wave4Message, Wave5Message, Wave6Message, Wave7Message, Wave8Message, Wave9Message, Wave10Message, Wave11Message, Wave12Message, Wave13Message, Wave14Message, Wave15Message, Wave16Message, BrutalWaveMessage;
 
 static function string GetString(optional int Switch, optional PlayerReplicationInfo PRI1, optional PlayerReplicationInfo PRI2, optional Object OptionalObject)
 {
@@ -37,6 +37,8 @@ static function string GetString(optional int Switch, optional PlayerReplication
 		return default.Wave15Message;
 	else if (Switch == 16)
 		return default.Wave16Message;
+	else if (Switch == 100)
+		return default.BrutalWaveMessage;
 	else
 		return default.WaveRandomizedMessage;
 }
