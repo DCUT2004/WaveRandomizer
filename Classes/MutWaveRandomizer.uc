@@ -90,7 +90,6 @@ event PostBeginPlay()
 
 function Timer()
 {
-	local int Chance;
 	local int x;
     local bool MakeBrutal;
     
@@ -109,19 +108,16 @@ function Timer()
 	if (WaveNum != Invasion.WaveNum && Invasion.bWaveInProgress && Waves[Invasion.WaveNum].BonusWavePlayed == False && BonusWaveInitialized == False)	//This is a new wave, so we have to spin the wheel and set this class's WaveNum to Invasion's WaveNum. bWaveInProgress must be set because Invasion sets the monster list right when Countdown is 0
 	{
 		WaveNum = Invasion.WaveNum;
-		Chance = Rand(100);	//Spin the wheel and assign it to Chance
         MakeBrutal = AreWeBrutal();
     
-	    if (MakeBrutal)
-        {
-    		if (Chance < Waves[WaveNum].BrutalWaveChance)
-    		{
-    				WaveBrutalRandomize();
-    		}
-        }
+	    if (MakeBrutal && Rand(100) < Waves[WaveNum].BrutalWaveChance)
+		{
+				WaveBrutalRandomize();
+		}
         else
         {
-    		if (Chance < Waves[WaveNum].WaveChance && Waves[WaveNum].WaveRandomizedEnabled)
+            // if we haven't meet the requirements for a brutal wave - either the levels of unlucky - then try for a normal randomisation
+    		if (Rand(100) < Waves[WaveNum].WaveChance && Waves[WaveNum].WaveRandomizedEnabled)
     		{
     				WaveRandomize();
     		}
@@ -652,7 +648,7 @@ function WaveBrutalRandomize()
 
     BroadcastLocalizedMessage(class'WaveRandomizedMessage', 100);
 	Invasion.Waves[Invasion.WaveNum].WaveMaxMonsters = Waves[Invasion.WaveNum].RandomizedWaveMaxMonsters;
-	Invasion.MaxMonsters = Waves[Invasion.WaveNum].RandomizedWaveMaxMonsters;
+	Invasion.MaxMonsters = Waves[Invasion.WaveNum].BrutalWaveMaxMonsters;
 	Invasion.Waves[Invasion.WaveNum].WaveDuration = Waves[Invasion.WaveNum].RandomizedWaveDuration;
 }
 
