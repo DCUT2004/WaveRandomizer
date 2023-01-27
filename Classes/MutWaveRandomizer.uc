@@ -43,8 +43,9 @@ struct WaveInfo
 	var() byte	RandomizedWaveDuration;
 	var() int	WaveChance;
 	var() bool	WaveRandomizedEnabled;
-	var() int	BrutalWaveChance;
     var() int	RandomizedMessageSwitch;
+	var() int	BrutalWaveChance;
+    var() int   BrutalWaveMaxMonsters;
 	var() bool	BonusWaveEnabled;
 	var() bool	BonusWavePlayed;
 	var() byte	BonusWaveMaxMonsters;
