@@ -2,12 +2,17 @@ class MutWaveRandomizer extends Mutator
 	config(satoreMonsterPack);
 	
 var Invasion Invasion;
-var config Array < class < Monster > > Wave1MonsterClass, Wave2MonsterClass, Wave3MonsterClass, Wave4MonsterClass, Wave5MonsterClass, Wave6MonsterClass, Wave7MonsterClass, Wave8MonsterClass, Wave9MonsterClass, Wave10MonsterClass, Wave11MonsterClass, Wave12MonsterClass, Wave13MonsterClass, Wave14MonsterClass, Wave15MonsterClass, Wave16MonsterClass, IceOnlyMonsterClass, FireOnlyMonsterClass, EarthOnlyMonsterClass;
-var config Array < class < Monster > > KrallClass, BruteClass, SlithClass, GasbagClass, SlugClass, MercenaryClass, RazorflyClass;
 var config Array < class < Monster > > Wave1BonusMonsterClass, Wave2BonusMonsterClass, Wave3BonusMonsterClass, Wave4BonusMonsterClass, Wave5BonusMonsterClass, Wave6BonusMonsterClass, Wave7BonusMonsterClass, Wave8BonusMonsterClass, Wave9BonusMonsterClass, Wave10BonusMonsterClass, Wave11BonusMonsterClass, Wave12BonusMonsterClass, Wave13BonusMonsterClass, Wave14BonusMonsterClass, Wave15BonusMonsterClass, Wave16BonusMonsterClass;
 var config Array < class < Monster > > BunnyMonsterClass, SafeMonsterClass, BossMonsterClass;
-var config Array < class < Monster > > Wave1BrutalMonsterClass, Wave2BrutalMonsterClass, Wave3BrutalMonsterClass, Wave4BrutalMonsterClass, Wave5BrutalMonsterClass, Wave6BrutalMonsterClass, Wave7BrutalMonsterClass, Wave8BrutalMonsterClass, Wave9BrutalMonsterClass, Wave10BrutalMonsterClass, Wave11BrutalMonsterClass, Wave12BrutalMonsterClass, Wave13BrutalMonsterClass, Wave14BrutalMonsterClass, Wave15BrutalMonsterClass, Wave16BrutalMonsterClass;
 var int WaveNum;
+
+struct RandomMonster
+{
+    var int Group;
+    var int SubGroup;
+    var class<Monster> MonsterClass;
+};
+var config Array<RandomMonster> RandomMonsterClass;
 
 var config int FinalWave;
 var config bool bAdjustFinalWave;
@@ -44,8 +49,10 @@ struct WaveInfo
 	var() int	WaveChance;
 	var() bool	WaveRandomizedEnabled;
     var() int	RandomizedMessageSwitch;
+    var() int   RandomMonsterGroup;
 	var() int	BrutalWaveChance;
     var() int   BrutalWaveMaxMonsters;
+    var() int   BrutalMonsterGroup;
 	var() bool	BonusWaveEnabled;
 	var() bool	BonusWavePlayed;
 	var() byte	BonusWaveMaxMonsters;
@@ -276,193 +283,67 @@ function bool AreWeBrutal()
     return false; 
 }
 
+function array< class< Monster > > GetMonstersForGroup(int MonsterGroup)
+{
+	local int i;
+    local int MaxSubGroup;
+    local int SubGroup;
+    local array< class< Monster > > SelectedMonsters;
+
+    SelectedMonsters.Length = 0;
+    MaxSubGroup = 0;
+	for (i=0; i < RandomMonsterClass.Length; i++)
+	{
+        if (RandomMonsterClass[i].Group == MonsterGroup)
+            if (RandomMonsterClass[i].SubGroup > MaxSubGroup)
+                MaxSubGroup = RandomMonsterClass[i].SubGroup;    
+    }
+    if (MaxSubGroup <= 0)
+    {
+        return SelectedMonsters; // corrupt config
+    }
+        
+    if (MaxSubGroup == 1)
+        SubGroup = MaxSubGroup;
+    else
+    {
+        // randomly choose one of the subgroups
+        SubGroup = Rand(MaxSubGroup);
+    }
+    
+	for(i=0; i<RandomMonsterClass.Length; i++)
+	{
+        if (RandomMonsterClass[i].Group == MonsterGroup && RandomMonsterClass[i].SubGroup == SubGroup)
+                SelectedMonsters[SelectedMonsters.Length] = RandomMonsterClass[i].MonsterClass;    
+    }
+    
+    return SelectedMonsters;
+}
+
 function WaveRandomize()
 {
 	//This function handles the randomization of each specific wave
-	
-	local int i;
-	local int RandIndex;
 
-    switch (Invasion.WaveNum)
-    {
-    	case 0:
-    		Invasion.WaveNumClasses=0;
-    		for(i=0;i<16;i++)
-    		{
-    			Invasion.WaveMonsterClass[Invasion.WaveNumClasses] = Wave1MonsterClass[Rand(Wave1MonsterClass.Length)];
-    			Invasion.WaveNumClasses++;
-    		}
-            break;
-            
-    	case 1:
-    		Invasion.WaveNumClasses=0;
-    		for(i=0;i<16;i++)
-    		{
-    			Invasion.WaveMonsterClass[Invasion.WaveNumClasses] = Wave2MonsterClass[Rand(Wave2MonsterClass.Length)];
-    			Invasion.WaveNumClasses++;
-    		}
-            break;
-            
-    	case 2:
-    		Invasion.WaveNumClasses=0;
-    		for(i=0;i<16;i++)
-    		{
-    			Invasion.WaveMonsterClass[Invasion.WaveNumClasses] = Wave3MonsterClass[Rand(Wave3MonsterClass.Length)];
-    			Invasion.WaveNumClasses++;
-    		}
-            break;
-            
-    	case 3:
-    		Invasion.WaveNumClasses=0;
-    		for(i=0;i<16;i++)
-    		{
-    			Invasion.WaveMonsterClass[Invasion.WaveNumClasses] = Wave4MonsterClass[Rand(Wave4MonsterClass.Length)];
-    			Invasion.WaveNumClasses++;
-    		}
-            break;
-            
-    	case 4:
-    		Invasion.WaveNumClasses=0;
-    		for(i=0;i<16;i++)
-    		{
-    			Invasion.WaveMonsterClass[Invasion.WaveNumClasses] = Wave5MonsterClass[Rand(Wave5MonsterClass.Length)];
-    			Invasion.WaveNumClasses++;
-    		}
-            break;
-            
-    	case 5:
-    		Invasion.WaveNumClasses=0;
-    		for(i=0;i<16;i++)
-    		{
-    			Invasion.WaveMonsterClass[Invasion.WaveNumClasses] = Wave6MonsterClass[Rand(Wave6MonsterClass.Length)];
-    			Invasion.WaveNumClasses++;
-    		}
-            break;
-            
-    	case 6:
-    		Invasion.WaveNumClasses=0;
-    		for(i=0;i<16;i++)
-    		{
-    			Invasion.WaveMonsterClass[Invasion.WaveNumClasses] = Wave7MonsterClass[Rand(Wave7MonsterClass.Length)];
-    			Invasion.WaveNumClasses++;
-    		}
-            break;
-            
-    	case 7:
-    		Invasion.WaveNumClasses=0;
-    		for(i=0;i<16;i++)
-    		{
-    			Invasion.WaveMonsterClass[Invasion.WaveNumClasses] = Wave8MonsterClass[Rand(Wave8MonsterClass.Length)];
-    			Invasion.WaveNumClasses++;
-    		}
-            break;
-            
-    	case 8:
-    		Invasion.WaveNumClasses=0;
-    		for(i=0;i<16;i++)
-    		{
-    			Invasion.WaveMonsterClass[Invasion.WaveNumClasses] = Wave9MonsterClass[Rand(Wave9MonsterClass.Length)];
-    			Invasion.WaveNumClasses++;
-    		}
-            break;
-            
-    	case 9:
-    		Invasion.WaveNumClasses=0;
-    		for(i=0;i<16;i++)
-    		{
-    			Invasion.WaveMonsterClass[Invasion.WaveNumClasses] = Wave10MonsterClass[Rand(Wave10MonsterClass.Length)];
-    			Invasion.WaveNumClasses++;
-    		}
-            break;
-            
-    	case 10:
-    		Invasion.WaveNumClasses=0;
-    		for(i=0;i<16;i++)
-    		{
-    			Invasion.WaveMonsterClass[Invasion.WaveNumClasses] = Wave11MonsterClass[Rand(Wave11MonsterClass.Length)];
-    			Invasion.WaveNumClasses++;
-    		}
-            break;
-            
-    	case 11:	//Roulette wave. Choose 1 type of monster
-    		RandIndex = Rand(7);
-    		Invasion.WaveNumClasses=0;
-    		for(i=0;i<16;i++)
-    		{
-    			if (RandIndex == 0)
-    				Invasion.WaveMonsterClass[Invasion.WaveNumClasses] = KrallClass[Rand(KrallClass.Length)];
-    			else if (RandIndex == 1)
-    				Invasion.WaveMonsterClass[Invasion.WaveNumClasses] = SlithClass[Rand(SlithClass.Length)];
-    			else if (RandIndex == 2)
-    				Invasion.WaveMonsterClass[Invasion.WaveNumClasses] = BruteClass[Rand(BruteClass.Length)];
-    			else if (RandIndex == 3)
-    				Invasion.WaveMonsterClass[Invasion.WaveNumClasses] = MercenaryClass[Rand(MercenaryClass.Length)];
-    			else if (RandIndex == 4)
-    				Invasion.WaveMonsterClass[Invasion.WaveNumClasses] = GasbagClass[Rand(GasbagClass.Length)];
-    			else if (RandIndex == 5)
-    				Invasion.WaveMonsterClass[Invasion.WaveNumClasses] = SlugClass[Rand(SlugClass.Length)];
-    			else
-    				Invasion.WaveMonsterClass[Invasion.WaveNumClasses] = RazorflyClass[Rand(RazorflyClass.Length)];
-    			Invasion.WaveNumClasses++;
-    		}
-            break;
-            
-    	case 12:
-    		Invasion.WaveNumClasses=0;
-    		for(i=0;i<16;i++)
-    		{
-    			Invasion.WaveMonsterClass[Invasion.WaveNumClasses] = Wave13MonsterClass[Rand(Wave13MonsterClass.Length)];
-    			Invasion.WaveNumClasses++;
-    		}
-            break;
-            
-    	case 13:
-    		Invasion.WaveNumClasses=0;
-    		RandIndex = Rand(3);
-    		if (RandIndex == 0)
-    		{
-    			for(i=0;i<16;i++)
-    			{
-    				Invasion.WaveMonsterClass[Invasion.WaveNumClasses] = FireOnlyMonsterClass[Rand(FireOnlyMonsterClass.Length)];
-    				Invasion.WaveNumClasses++;
-    			}
-    		}
-    		else if (RandIndex == 1)
-    		{
-    			for(i=0;i<16;i++)
-    			{
-    				Invasion.WaveMonsterClass[Invasion.WaveNumClasses] = IceOnlyMonsterClass[Rand(IceOnlyMonsterClass.Length)];
-    				Invasion.WaveNumClasses++;
-    			}
-    		}
-    		else
-    		{
-    			for(i=0;i<16;i++)
-    			{
-    				Invasion.WaveMonsterClass[Invasion.WaveNumClasses] = EarthOnlyMonsterClass[Rand(EarthOnlyMonsterClass.Length)];
-    				Invasion.WaveNumClasses++;
-    			}
-    		}
-            break;
-            
-    	case 14:
-    		Invasion.WaveNumClasses=0;
-    		for(i=0;i<16;i++)
-    		{
-    			Invasion.WaveMonsterClass[Invasion.WaveNumClasses] = Wave15MonsterClass[Rand(Wave15MonsterClass.Length)];
-    			Invasion.WaveNumClasses++;
-    		}
-            break;
-            
-    	case 15:
-    		Invasion.WaveNumClasses=0;
-    		for(i=0;i<16;i++)
-    		{
-    			Invasion.WaveMonsterClass[Invasion.WaveNumClasses] = Wave16MonsterClass[Rand(Wave16MonsterClass.Length)];
-    			Invasion.WaveNumClasses++;
-    		}
-    }
+	local int i;
+    local int MonsterGroup;
+    local array< class< Monster > > SelectedMonsters;
     
+    MonsterGroup = Waves[Invasion.WaveNum].RandomMonsterGroup;
+    
+    SelectedMonsters = GetMonstersForGroup(MonsterGroup);
+    
+    // Log("+++++ random wave selected for wave" @ Invasion.WaveNum @ "using group" @ MonsterGroup @ "returned" @ SelectedMonsters.Length @ "monsters");
+    
+    if (SelectedMonsters.Length == 0)
+        return;
+        
+	Invasion.WaveNumClasses=0;
+	for(i=0;i<16;i++)
+	{
+		Invasion.WaveMonsterClass[Invasion.WaveNumClasses] = SelectedMonsters[Rand(SelectedMonsters.Length)];
+		Invasion.WaveNumClasses++;
+	}
+        
     BroadcastLocalizedMessage(class'WaveRandomizedMessage', Waves[Invasion.WaveNum].RandomizedMessageSwitch);
 	Invasion.Waves[Invasion.WaveNum].WaveMaxMonsters = Waves[Invasion.WaveNum].RandomizedWaveMaxMonsters;
 	Invasion.MaxMonsters = Waves[Invasion.WaveNum].RandomizedWaveMaxMonsters;
@@ -474,178 +355,25 @@ function WaveBrutalRandomize()
 	//This function handles the randomization of each specific wave, but where the player levels are high
 	
 	local int i;
-	local int RandIndex;
+    local int MonsterGroup;
+    local array< class< Monster > > SelectedMonsters;
     
-    switch (Invasion.WaveNum)
-    {
-    	case 0:
-    		Invasion.WaveNumClasses=0;
-    		for(i=0;i<16;i++)
-    		{
-    			Invasion.WaveMonsterClass[Invasion.WaveNumClasses] = Wave1BrutalMonsterClass[Rand(Wave1BrutalMonsterClass.Length)];
-    			Invasion.WaveNumClasses++;
-    		}
-            break;
-            
-    	case 1:
-    		Invasion.WaveNumClasses=0;    // skaarj
-    		for(i=0;i<16;i++)
-    		{
-    			Invasion.WaveMonsterClass[Invasion.WaveNumClasses] = Wave2BrutalMonsterClass[Rand(Wave2BrutalMonsterClass.Length)];
-    			Invasion.WaveNumClasses++;
-    		}
-            break;
-            
-    	case 2:
-    		Invasion.WaveNumClasses=0;    // ghosts only
-    		for(i=0;i<16;i++)
-    		{
-    			Invasion.WaveMonsterClass[Invasion.WaveNumClasses] = Wave3BrutalMonsterClass[Rand(Wave3BrutalMonsterClass.Length)];
-    			Invasion.WaveNumClasses++;
-    		}
-            break;
-            
-    	case 3:
-    		Invasion.WaveNumClasses=0;    // warlords
-    		for(i=0;i<16;i++)
-    		{
-    			Invasion.WaveMonsterClass[Invasion.WaveNumClasses] = Wave4BrutalMonsterClass[Rand(Wave4BrutalMonsterClass.Length)];
-    			Invasion.WaveNumClasses++;
-    		}
-            break;
-            
-    	case 4:
-    		Invasion.WaveNumClasses=0;    // tech and Cosmic
-    		for(i=0;i<16;i++)
-    		{
-    			Invasion.WaveMonsterClass[Invasion.WaveNumClasses] = Wave5BrutalMonsterClass[Rand(Wave5BrutalMonsterClass.Length)];
-    			Invasion.WaveNumClasses++;
-    		}
-            break;
-            
-    	case 5:
-    		Invasion.WaveNumClasses=0;    //Roulette wave. Choose 1 type of monster
-    		RandIndex = Rand(3);
-    		for(i=0;i<16;i++)
-    		{
-    			if (RandIndex == 0)
-    				Invasion.WaveMonsterClass[Invasion.WaveNumClasses] = SlithClass[Rand(SlithClass.Length)];
-    			else if (RandIndex == 1)
-    				Invasion.WaveMonsterClass[Invasion.WaveNumClasses] = BruteClass[Rand(BruteClass.Length)];
-    			else 
-    				Invasion.WaveMonsterClass[Invasion.WaveNumClasses] = MercenaryClass[Rand(MercenaryClass.Length)];
-    			Invasion.WaveNumClasses++;
-    		}
-            break;
-            
-    	case 6:
-    		Invasion.WaveNumClasses=0;    // titans and a couple of techs
-    		for(i=0;i<16;i++)
-    		{
-    			Invasion.WaveMonsterClass[Invasion.WaveNumClasses] = Wave7BrutalMonsterClass[Rand(Wave7BrutalMonsterClass.Length)];
-    			Invasion.WaveNumClasses++;
-    		}
-            break;
-            
-    	case 7:
-    		Invasion.WaveNumClasses=0;
-    		for(i=0;i<16;i++)
-    		{
-    			Invasion.WaveMonsterClass[Invasion.WaveNumClasses] = Wave8BrutalMonsterClass[Rand(Wave8BrutalMonsterClass.Length)];
-    			Invasion.WaveNumClasses++;
-    		}
-            break;
-            
-    	case 8:
-    		Invasion.WaveNumClasses=0;    // elementals
-    		RandIndex = Rand(2);
-            if (RandIndex == 0)
-    		{
-    			for(i=0;i<16;i++)
-    			{
-    				Invasion.WaveMonsterClass[Invasion.WaveNumClasses] = IceOnlyMonsterClass[Rand(IceOnlyMonsterClass.Length)];
-    				Invasion.WaveNumClasses++;
-    			}
-    		}
-    		else
-    		{
-    			for(i=0;i<16;i++)
-    			{
-    				Invasion.WaveMonsterClass[Invasion.WaveNumClasses] = EarthOnlyMonsterClass[Rand(EarthOnlyMonsterClass.Length)];
-    				Invasion.WaveNumClasses++;
-    			}
-    		}
-            break;
-            
-    	case 9:
-    		Invasion.WaveNumClasses=0;
-    		for(i=0;i<16;i++)
-    		{
-    			Invasion.WaveMonsterClass[Invasion.WaveNumClasses] = Wave10BrutalMonsterClass[Rand(Wave10BrutalMonsterClass.Length)];
-    			Invasion.WaveNumClasses++;
-    		}
-            break;
-            
-    	case 10:
-    		Invasion.WaveNumClasses=0;
-    		for(i=0;i<16;i++)
-    		{
-    			Invasion.WaveMonsterClass[Invasion.WaveNumClasses] = Wave11BrutalMonsterClass[Rand(Wave11BrutalMonsterClass.Length)];
-    			Invasion.WaveNumClasses++;
-    		}
-            break;
-            
-    	case 11:	//Roulette wave. Choose 1 type of monster
-    		RandIndex = Rand(3);
-    		Invasion.WaveNumClasses=0;
-    		for(i=0;i<16;i++)
-    		{
-    			if (RandIndex == 0)
-    				Invasion.WaveMonsterClass[Invasion.WaveNumClasses] = KrallClass[Rand(KrallClass.Length)];
-    			else if (RandIndex == 1)
-    				Invasion.WaveMonsterClass[Invasion.WaveNumClasses] = GasbagClass[Rand(GasbagClass.Length)];
-    			else 
-    				Invasion.WaveMonsterClass[Invasion.WaveNumClasses] = SlugClass[Rand(SlugClass.Length)];
-    			Invasion.WaveNumClasses++;
-    		}
-            break;
-            
-    	case 12:
-    		Invasion.WaveNumClasses=0;
-    		for(i=0;i<16;i++)
-    		{
-    			Invasion.WaveMonsterClass[Invasion.WaveNumClasses] = Wave13BrutalMonsterClass[Rand(Wave13BrutalMonsterClass.Length)];
-    			Invasion.WaveNumClasses++;
-    		}
-            break;
-            
-    	case 13:
-    		Invasion.WaveNumClasses=0;
-			for(i=0;i<16;i++)
-			{
-				Invasion.WaveMonsterClass[Invasion.WaveNumClasses] = FireOnlyMonsterClass[Rand(FireOnlyMonsterClass.Length)];
-				Invasion.WaveNumClasses++;
-			}
-            break;
-            
-    	case 14:
-    		Invasion.WaveNumClasses=0;
-    		for(i=0;i<16;i++)
-    		{
-    			Invasion.WaveMonsterClass[Invasion.WaveNumClasses] = Wave15BrutalMonsterClass[Rand(Wave15BrutalMonsterClass.Length)];
-    			Invasion.WaveNumClasses++;
-    		}
-            break;
-            
-    	case 15:
-    		Invasion.WaveNumClasses=0;
-    		for(i=0;i<16;i++)
-    		{
-    			Invasion.WaveMonsterClass[Invasion.WaveNumClasses] = Wave16BrutalMonsterClass[Rand(Wave16BrutalMonsterClass.Length)];
-    			Invasion.WaveNumClasses++;
-    		}
-    }
-
+    MonsterGroup = Waves[Invasion.WaveNum].BrutalMonsterGroup;
+    
+    SelectedMonsters = GetMonstersForGroup(MonsterGroup);
+    
+    // Log("+++++ Brutal wave selected for wave" @ Invasion.WaveNum @ "using group" @ MonsterGroup @ "returned" @ SelectedMonsters.Length @ "monsters");
+    
+    if (SelectedMonsters.Length == 0)
+        return;
+        
+	Invasion.WaveNumClasses=0;
+	for(i=0;i<16;i++)
+	{
+		Invasion.WaveMonsterClass[Invasion.WaveNumClasses] = SelectedMonsters[Rand(SelectedMonsters.Length)];
+		Invasion.WaveNumClasses++;
+	}
+        
     BroadcastLocalizedMessage(class'WaveRandomizedMessage', 100);
 	Invasion.Waves[Invasion.WaveNum].WaveMaxMonsters = Waves[Invasion.WaveNum].RandomizedWaveMaxMonsters;
 	Invasion.MaxMonsters = Waves[Invasion.WaveNum].BrutalWaveMaxMonsters;
@@ -961,25 +689,6 @@ function RewardXP()
 
 defaultproperties
 {
-     Wave1MonsterClass(0)=Class'SkaarjPack.SkaarjPupae'
-     Wave2MonsterClass(0)=Class'SkaarjPack.SkaarjPupae'
-     Wave3MonsterClass(0)=Class'SkaarjPack.SkaarjPupae'
-     Wave4MonsterClass(0)=Class'SkaarjPack.SkaarjPupae'
-     Wave5MonsterClass(0)=Class'SkaarjPack.SkaarjPupae'
-     Wave6MonsterClass(0)=Class'SkaarjPack.SkaarjPupae'
-     Wave7MonsterClass(0)=Class'SkaarjPack.SkaarjPupae'
-     Wave8MonsterClass(0)=Class'SkaarjPack.SkaarjPupae'
-     Wave9MonsterClass(0)=Class'SkaarjPack.SkaarjPupae'
-     Wave10MonsterClass(0)=Class'SkaarjPack.SkaarjPupae'
-     Wave11MonsterClass(0)=Class'SkaarjPack.SkaarjPupae'
-     Wave12MonsterClass(0)=Class'SkaarjPack.SkaarjPupae'
-     Wave13MonsterClass(0)=Class'SkaarjPack.SkaarjPupae'
-     Wave14MonsterClass(0)=Class'SkaarjPack.SkaarjPupae'
-     Wave15MonsterClass(0)=Class'SkaarjPack.SkaarjPupae'
-     Wave16MonsterClass(0)=Class'SkaarjPack.SkaarjPupae'
-     IceOnlyMonsterClass(0)=Class'SkaarjPack.SkaarjPupae'
-     FireOnlyMonsterClass(0)=Class'SkaarjPack.SkaarjPupae'
-     EarthOnlyMonsterClass(0)=Class'SkaarjPack.SkaarjPupae'
      Wave1BonusMonsterClass(0)=Class'SkaarjPack.SkaarjPupae'
      Wave2BonusMonsterClass(0)=Class'SkaarjPack.SkaarjPupae'
      Wave3BonusMonsterClass(0)=Class'SkaarjPack.SkaarjPupae'
