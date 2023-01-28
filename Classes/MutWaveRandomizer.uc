@@ -261,7 +261,7 @@ function bool AreWeBrutal()
     NumPlayers = 0;
 
 	for (C = Level.ControllerList; C != None; C = C.NextController)
-		if (C.bIsPlayer && C.PlayerReplicationInfo != None && !C.PlayerReplicationInfo.bOutOfLives && !C.PlayerReplicationInfo.bBot)
+		if (C.bIsPlayer && C.PlayerReplicationInfo != None && !C.PlayerReplicationInfo.bBot)
 			for (Inv = C.Inventory; Inv != None; Inv = Inv.Inventory)
 				if ( RPGStatsInv(Inv) != None)
                 {
@@ -275,6 +275,8 @@ function bool AreWeBrutal()
                         MaxLevel = RPGStatsInv(Inv).DataObject.Level;
                     }
                 }
+
+    Log("+++++ Check Brutal Num players:" @ NumPlayers @ "Minlevel:" @ Minlevel @ "Maxlevel:" @ MaxLevel);
 
     for (x=0;x < BrutalConditions.Length;x++)
         if (NumPlayers >= BrutalConditions[x].MinPlayers && MinLevel > BrutalConditions[x].MinLevel)   
