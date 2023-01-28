@@ -308,7 +308,7 @@ function array< class< Monster > > GetMonstersForGroup(int MonsterGroup)
     else
     {
         // randomly choose one of the subgroups
-        SubGroup = Rand(MaxSubGroup);
+        SubGroup = Rand(MaxSubGroup) + 1;
     }
     
 	for(i=0; i<RandomMonsterClass.Length; i++)
