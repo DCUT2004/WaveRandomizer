@@ -2,17 +2,53 @@ class MutWaveRandomizer extends Mutator
 	config(satoreMonsterPack);
 	
 var Invasion Invasion;
-var config Array < class < Monster > > Wave1BonusMonsterClass, Wave2BonusMonsterClass, Wave3BonusMonsterClass, Wave4BonusMonsterClass, Wave5BonusMonsterClass, Wave6BonusMonsterClass, Wave7BonusMonsterClass, Wave8BonusMonsterClass, Wave9BonusMonsterClass, Wave10BonusMonsterClass, Wave11BonusMonsterClass, Wave12BonusMonsterClass, Wave13BonusMonsterClass, Wave14BonusMonsterClass, Wave15BonusMonsterClass, Wave16BonusMonsterClass;
 var config Array < class < Monster > > BunnyMonsterClass, SafeMonsterClass, BossMonsterClass;
 var int WaveNum;
 
+struct WaveOption
+{
+    var int Chance;
+    var int MaxMonsters;
+    var int MonsterGroup;
+};
+
+struct WaveDetail
+{
+    var int WaveNumber;
+    var int DifficultyMode;
+    var Array<WaveOption> WaveOptions;
+};
+var config Array<WaveDetail> WaveConfig;
+
+var config Array<WaveDetail> BonusWaveConfig;
+var Array<int> BonusWavePlayed[16];     // int because bool not allowed. So 0 false 1 true.
+var int BonusMonsterGroupNext;
+var int MaxBonusMonstersNext;
+
+struct DifficultyModeRecord
+{
+    var int DifficultyMode;
+    var string Name;
+    var int MinPlayerLevel;
+    var int MaxPlayerLevel;
+    var int MinNumPlayers;
+};
+var config Array<DifficultyModeRecord> DifficultyModes;
+
+struct MonsterGroup
+{
+    var int MonsterGroup;
+    var string Name;               // just for us to know what it is
+    var string Description;        // used in message if set
+};
+var config Array<MonsterGroup> MonsterGroups;
+
 struct RandomMonster
 {
-    var int Group;
-    var int SubGroup;
+    var int MonsterGroup;
     var class<Monster> MonsterClass;
 };
-var config Array<RandomMonster> RandomMonsterClass;
+var config Array<RandomMonster> MonsterGroupMonsters;
 
 var config int FinalWave;
 var config bool bAdjustFinalWave;
@@ -42,34 +78,10 @@ var config byte BunnyWaveMaxMonsters, BunnyWaveDuration;
 
 #exec  AUDIO IMPORT NAME="BossWarning" FILE="Sounds\BossWarning.WAV" GROUP="Boss"
 
-struct WaveInfo
-{
-	var() byte	RandomizedWaveMaxMonsters;
-	var() byte	RandomizedWaveDuration;
-	var() int	WaveChance;
-	var() bool	WaveRandomizedEnabled;
-    var() int	RandomizedMessageSwitch;
-    var() int   RandomMonsterGroup;
-	var() int	BrutalWaveChance;
-    var() int   BrutalWaveMaxMonsters;
-    var() int   BrutalMonsterGroup;
-	var() bool	BonusWaveEnabled;
-	var() bool	BonusWavePlayed;
-	var() byte	BonusWaveMaxMonsters;
-	var() byte	BonusWaveDuration;
-};
-
-var() config WaveInfo Waves[16];
-
-struct BrutalCondition
-{
-    var int MinPlayers;
-    var int MinLevel;
-};
-var config Array<BrutalCondition> BrutalConditions;
-
 event PostBeginPlay()
 {
+    local int i;
+    
 	Invasion = Invasion(Level.Game);
 	if (Invasion != None)
 	{
@@ -85,6 +97,8 @@ event PostBeginPlay()
 		SpecialWaveInitialized = False;
 		XPRewarded = False;
 		bPlayerReset = false;
+        for (i=0; i<16; i++)
+            BonusWavePlayed[i] = 0;
 		if (Rand(100) <= BossWaveChance)
 			bBossWaveAdded = True;
 		else
@@ -92,13 +106,133 @@ event PostBeginPlay()
 		SetTimer(1, True);
 		WaveNum = -1; 	//Initialize the WaveNum to -1. This is set so that Timer() can check this condition as true for the first wave of this game.
 	}
+    
+    CheckConfig();
+    
 	Super.PostBeginPlay();
+}
+
+function CheckConfig()
+{
+    // the satore config is quite complex. let's do some simple checks for consistency
+	local int i;
+    local int j;
+    local int x;
+    local int MonsterGroup;
+    local bool CheckOK;
+    local int sum;
+    local int MaxDifficultyMode;
+    
+    // first check DifficultyMode setup
+    MaxDifficultyMode = -1;
+ 	for(i=0; i< DifficultyModes.Length; i++)
+	{
+        if (DifficultyModes[i].DifficultyMode > MaxDifficultyMode)
+            MaxDifficultyMode =  DifficultyModes[i].DifficultyMode;
+    }
+    if (MaxDifficultyMode < 0)
+        Log("!!!!!!!! WaveRandomizer Config Check Error - no DifficultyModes configured");
+    
+    // now check each MonsterGroup in MonsterGroupMonsters is in MonsterGroups
+ 	for(i=0; i<MonsterGroupMonsters.Length; i++)
+	{
+        MonsterGroup = MonsterGroupMonsters[i].MonsterGroup;
+        CheckOK = false;
+     	for(x=0; x < MonsterGroups.Length; x++)
+    	{
+            if (MonsterGroups[x].MonsterGroup == MonsterGroup)
+                CheckOK = true;
+        }
+        if (CheckOK == false)
+            Log("!!!!!!!! WaveRandomizer Config Check Error - MonsterGroup" @ MonsterGroup @ "in MonsterGroupMonsters but not in MonsterGroups");
+    }
+
+ 	for(i=0; i < WaveConfig.Length; i++)
+	{
+        if (WaveConfig[i].WaveNumber < 1 || WaveConfig[i].WaveNumber > 16)
+            Log("!!!!!!!! WaveRandomizer Config Check Error - WaveConfig has WaveNumber" @ WaveConfig[i].WaveNumber @ "which is not in the range 1-16");
+        if (WaveConfig[i].WaveOptions.Length == 0)
+            Log("!!!!!!!! WaveRandomizer Config Check Error - WaveConfig record has no WaveOptions configured" @ WaveConfig[i].WaveNumber @ "DifficultyMode:" @ WaveConfig[i].DifficultyMode);
+
+        CheckOK = false;
+     	for(j=0; j< DifficultyModes.Length; j++)
+    	{
+            if (DifficultyModes[j].DifficultyMode == WaveConfig[i].DifficultyMode)
+                CheckOK = true;
+        }
+        if (CheckOK == false)
+             Log("!!!!!!!! WaveRandomizer Config Check Error - WaveConfig record has DifficultyMode" @ WaveConfig[i].DifficultyMode @ "configured, which is not valid. Wave Number:" @ WaveConfig[i].WaveNumber);
+
+        sum = 0;
+        for (j=0; j < WaveConfig[i].WaveOptions.Length; j++)
+        {
+            if (WaveConfig[i].WaveOptions[j].MaxMonsters <1)
+                Log("!!!!!!!! WaveRandomizer Config Check Error - WaveConfig has MaxMonsters" @ WaveConfig[i].WaveOptions[j].MaxMonsters @ WaveConfig[i].WaveNumber @ "DifficultyMode:" @ WaveConfig[i].DifficultyMode);
+            sum += WaveConfig[i].WaveOptions[j].Chance;
+            CheckOK = false;
+            MonsterGroup = WaveConfig[i].WaveOptions[j].MonsterGroup;
+         	for(x=0; x < MonsterGroupMonsters.Length; x++)
+        	{
+                if (MonsterGroupMonsters[x].MonsterGroup == MonsterGroup)
+                    CheckOK = true;
+            }
+            if (CheckOK == false)
+                Log("!!!!!!!! WaveRandomizer Config Check Error - MonsterGroup" @ MonsterGroup @ "in WaveConfig WaveOptions but not in MonsterGroupMonsters" @ WaveConfig[i].WaveNumber @ "DifficultyMode:" @ WaveConfig[i].DifficultyMode);
+        }
+        if (sum != 100)
+            Log("!!!!!!!! WaveRandomizer Config Check Error - WaveConfig WaveOptions not summing to 100% - index" @ i @ "WaveNum:" @ WaveConfig[i].WaveNumber @ "DifficultyMode:" @ WaveConfig[i].DifficultyMode);
+    }
+
+    // now the bonus wave config
+    if ((MaxDifficultyMode + 1) * 16 != WaveConfig.Length)
+        Log("!!!!!!!! WaveRandomizer Config Check warning - possible mismatch in number of WaveConfig records - WaveConfig" @ WaveConfig.Length @ "DifficutyModes" @ MaxDifficultyMode + 1);
+
+ 	for(i=0; i < BonusWaveConfig.Length; i++)
+	{
+        if (BonusWaveConfig[i].WaveNumber < 1 || BonusWaveConfig[i].WaveNumber > 16)
+            Log("!!!!!!!! WaveRandomizer Config Check Error - BonusWaveConfig has WaveNumber" @ BonusWaveConfig[i].WaveNumber @ "which is not in the range 1-16");
+        if (BonusWaveConfig[i].WaveOptions.Length == 0)
+            Log("!!!!!!!! WaveRandomizer Config Check Error - BonusWaveConfig record has no WaveOptions configured" @ "WaveNum:" @ BonusWaveConfig[i].WaveNumber @ "DifficultyMode:" @ BonusWaveConfig[i].DifficultyMode);
+
+        CheckOK = false;
+     	for(j=0; j< DifficultyModes.Length; j++)
+    	{
+            if (DifficultyModes[j].DifficultyMode == BonusWaveConfig[i].DifficultyMode)
+                CheckOK = true;
+        }
+        if (CheckOK == false)
+             Log("!!!!!!!! WaveRandomizer Config Check Error - BonusWaveConfig record has DifficultyMode" @ BonusWaveConfig[i].DifficultyMode @ "configured, which is not valid. Wave Number:" @ BonusWaveConfig[i].WaveNumber);
+
+        sum = 0;
+        for (j=0; j < BonusWaveConfig[i].WaveOptions.Length; j++)
+        {
+            if (BonusWaveConfig[i].WaveOptions[j].MaxMonsters <1)
+                Log("!!!!!!!! WaveRandomizer Config Check Error - BonusWaveConfig has MaxMonsters" @ BonusWaveConfig[i].WaveOptions[j].MaxMonsters @ "WaveNum:" @ BonusWaveConfig[i].WaveNumber @ "DifficultyMode:" @ BonusWaveConfig[i].DifficultyMode);
+            sum += BonusWaveConfig[i].WaveOptions[j].Chance;
+            CheckOK = false;
+            MonsterGroup = BonusWaveConfig[i].WaveOptions[j].MonsterGroup;
+         	for(x=0; x < MonsterGroupMonsters.Length; x++)
+        	{
+                if (MonsterGroupMonsters[x].MonsterGroup == MonsterGroup)
+                    CheckOK = true;
+            }
+            if (CheckOK == false)
+                Log("!!!!!!!! WaveRandomizer Config Check Error - MonsterGroup" @ MonsterGroup @ "in BonusWaveConfig WaveOptions but not in MonsterGroupMonsters" @ "WaveNum:" @ BonusWaveConfig[i].WaveNumber @ "DifficultyMode:" @ BonusWaveConfig[i].DifficultyMode);
+        }
+        if (sum > 100)
+            Log("!!!!!!!! WaveRandomizer Config Check Error - WaveConfig WaveOptions summing to more than 100% - index" @ i @ "WaveNum:" @ BonusWaveConfig[i].WaveNumber @ "DifficultyMode:" @ BonusWaveConfig[i].DifficultyMode);
+    }
+
+    // check all 16 waves for each difficultymode
+    if ((MaxDifficultyMode + 1) * 16 != BonusWaveConfig.Length)
+        Log("!!!!!!!! WaveRandomizer Config Check Warning - possible mismatch in number of BonusWaveConfig records - BonusWaveConfig" @ BonusWaveConfig.Length @ "DifficutyModes" @ MaxDifficultyMode + 1);
 }
 
 function Timer()
 {
 	local int x;
-    local bool MakeBrutal;
+    local int MaxMonsters;
+    local int MonsterGroup;
     
 	//Increment the Final Wave number if we have BONUS or a Boss Wave
 	if (!SpecialWaveAdded && (default.bBunnyWaveAdded == True || bBossWaveAdded == True))
@@ -106,78 +240,74 @@ function Timer()
 		Invasion.FinalWave += 1;
 		if (Invasion.FinalWave > 16)
 			Invasion.FinalWave = 16;	//Safety measure so we don't go out of bounds
-		Waves[BossWaveIndex].BonusWaveEnabled = True;
 		SpecialWaveAdded = True;
 	}
 
 	//Timer() will continuously check for a new wave in Invasion
 	//If a new wave is found, do a one-time spin of the wheel for that wave to determine whether we should randomize the monsters in that wave
-	if (WaveNum != Invasion.WaveNum && Invasion.bWaveInProgress && Waves[Invasion.WaveNum].BonusWavePlayed == False && BonusWaveInitialized == False)	//This is a new wave, so we have to spin the wheel and set this class's WaveNum to Invasion's WaveNum. bWaveInProgress must be set because Invasion sets the monster list right when Countdown is 0
+	if (WaveNum != Invasion.WaveNum && Invasion.bWaveInProgress && BonusWavePlayed[Invasion.WaveNum] == 0 && BonusWaveInitialized == False)	//This is a new wave, so we have to spin the wheel and set this class's WaveNum to Invasion's WaveNum. bWaveInProgress must be set because Invasion sets the monster list right when Countdown is 0
 	{
 		WaveNum = Invasion.WaveNum;
-        MakeBrutal = AreWeBrutal();
-    
-	    if (MakeBrutal && Rand(100) < Waves[WaveNum].BrutalWaveChance)
-		{
-				WaveBrutalRandomize();
-		}
-        else
-        {
-            // if we haven't meet the requirements for a brutal wave - either the levels of unlucky - then try for a normal randomisation
-    		if (Rand(100) < Waves[WaveNum].WaveChance && Waves[WaveNum].WaveRandomizedEnabled)
-    		{
-    				WaveRandomize();
-    		}
-        }
+        ConfigureWave(WaveNum);
 	}
 	
 	//While we are in countdown of the new wave, check the previous wave to see if it had a bonus wave enabled
-	if (!Invasion.bWaveInProgress && Invasion.WaveCountdown <= 5 && Invasion.WaveNum != FinalWave)
+	if (!Invasion.bWaveInProgress && Invasion.WaveCountdown <= 5)
 	{
-		if (Invasion.WaveNum-1 > 0 && Waves[Invasion.WaveNum-1].BonusWaveEnabled == True && Waves[Invasion.WaveNum-1].BonusWavePlayed == False && BonusWaveInitialized == False)
-		{
-			//The previous wave had a bonus wave that we did not play. We need to decrement the Wave Number and play that wave
-			Invasion.WaveNum -= 1;
-			BonusWaveInitialized= True;
-		}
-	}
-	
-	//While we are in countdown of the final wave, check to see if we have Boss or Bunny waves enabled
-	if (!Invasion.bWaveInProgress && Invasion.WaveCountdown <= 5 && Invasion.WaveNum == FinalWave)
-	{
-		//We are on the last wave. We need to see if either bunny or boss waves are unlocked
-		if (default.bBunnyWaveAdded && bBossWaveAdded)		//We have both Boss and Bunny waves. Decrement Invasion wave number by 1 so we can fit both of them
-		{
-			//Go through the Bunny wave first
-			if (BunnyWaveInitialized == False)
-			{
-				Invasion.WaveNum -= 1;
-				BunnyWaveInitialized = True;
-			}
-			if (BossWaveInitialized == False && BunnyWaveCompleted == True)
-			{
-				BossWaveInitialized = True;
-			}
-		}
-		else if (bBossWaveAdded && !default.bBunnyWaveAdded)	//Add just the Boss wave. Do not decrement the invasion wave number
-		{
-			if (BossWaveInitialized == False)
-				BossWaveInitialized = True;
-		}
-		else if (!bBossWaveAdded && default.bBunnyWaveAdded)	//Add just the Bunny wave. Do not decrement the invasion wave number
-		{
-			if (BunnyWaveInitialized == False)
-				BunnyWaveInitialized = True;
-		}
-		SpecialWaveInitialized = True;
+        if (Invasion.WaveNum != FinalWave)
+        {
+    		if (Invasion.WaveNum-1 > 0 && BonusWaveInitialized == False && BonusWavePlayed[Invasion.WaveNum-1] == 0)
+    		{
+    			// The previous wave may have had a bonus wave that we did not play. If so, we need to decrement the Wave Number and play that wave - if we match the chance
+               if (IsBonusWaveWaiting(Invasion.WaveNum-1, MaxMonsters, MonsterGroup) == True)
+                {
+                    BonusMonsterGroupNext = MonsterGroup;
+                    MaxBonusMonstersNext = MaxMonsters;
+        			Invasion.WaveNum -= 1;
+        			BonusWaveInitialized= True;
+                }
+                else
+                    BonusWavePlayed[Invasion.WaveNum-1] = 1;    // don't check again - we failed the chance test
+    		}
+        }
+        else
+        {
+    		//We are on the last wave. We need to see if either bunny or boss waves are unlocked
+    		if (default.bBunnyWaveAdded && bBossWaveAdded)		//We have both Boss and Bunny waves. Decrement Invasion wave number by 1 so we can fit both of them
+    		{
+    			//Go through the Bunny wave first
+    			if (BunnyWaveInitialized == False)
+    			{
+    				Invasion.WaveNum -= 1;
+    				BunnyWaveInitialized = True;
+    			}
+    			if (BossWaveInitialized == False && BunnyWaveCompleted == True)
+    			{
+    				BossWaveInitialized = True;
+    			}
+    		}
+    		else if (bBossWaveAdded && !default.bBunnyWaveAdded)	//Add just the Boss wave. Do not decrement the invasion wave number
+    		{
+    			if (BossWaveInitialized == False)
+    				BossWaveInitialized = True;
+    		}
+    		else if (!bBossWaveAdded && default.bBunnyWaveAdded)	//Add just the Bunny wave. Do not decrement the invasion wave number
+    		{
+    			if (BunnyWaveInitialized == False)
+    				BunnyWaveInitialized = True;
+    		}
+    		SpecialWaveInitialized = True;
+        }
 	}
 	
 	//Below checks the end of a wave to see if there is a bonus wave
-	if (Invasion.bWaveInProgress && Waves[Invasion.WaveNum].BonusWaveEnabled == True && BonusWaveInitialized == True)
+	if (Invasion.bWaveInProgress && BonusWaveInitialized == True && BonusMonsterGroupNext > 0)
 	{
 		WaveBonus();
+        BonusMonsterGroupNext = 0;
+        MaxBonusMonstersNext = 0;
 		BonusWaveInitialized = False;	//Set BonusWaveInitialized back to false for next wave if next wave is a bonus wave
-		Waves[Invasion.WaveNum].BonusWavePlayed = True;
+		BonusWavePlayed[Invasion.WaveNum] = 1;
 	}
 	
 	//Below handles the bunny and boss waves
@@ -190,7 +320,7 @@ function Timer()
 				Log("Adding bunny wave");
 				BunnyWaveCompleted = True;
 				AddBunnyWave();
-				Waves[Invasion.WaveNum].BonusWavePlayed = True;
+				BonusWavePlayed[Invasion.WaveNum] = 1;
 			}
 			else
 			{
@@ -244,20 +374,59 @@ function Timer()
 	}
 }
 
-function bool AreWeBrutal()
+function bool IsBonusWaveWaiting(int WaveNum, out int MaxMonsters, out int MonsterGroup)
+{
+    local int DifficultyMode;
+    local int x;
+    local int i;
+    local int chance;
+    
+	if (WaveNum == 0 || BonusWavePlayed[WaveNum] == 1)
+        return false;
+
+    DifficultyMode = GetDifficultyMode();
+        
+    for (x=0; x < BonusWaveConfig.Length; x++)
+    {
+        if (BonusWaveConfig[x].WaveNumber == WaveNum+1 && BonusWaveConfig[x].DifficultyMode == DifficultyMode)
+        {
+            // found the config record. Let's check the chance
+            chance = Rand(100);
+            for (i=0; i < BonusWaveConfig[x].WaveOptions.Length; i++)
+            {
+                if (chance < BonusWaveConfig[x].WaveOptions[i].Chance)
+                {
+                    MaxMonsters = BonusWaveConfig[x].WaveOptions[i].MaxMonsters;
+                    MonsterGroup = BonusWaveConfig[x].WaveOptions[i].MonsterGroup;
+                    Log("+++++ IsBonusWaveWaiting checking for Bonus Wave for Wave number:" @ WaveNum @ "found bonus wave MonsterGroup:" @ MonsterGroup);
+                   return true;
+                }
+                else
+                    chance -= BonusWaveConfig[x].WaveOptions[i].Chance;
+            }
+
+            Log("+++++ IsBonusWaveWaiting checking for Bonus Wave for Wave number:" @ WaveNum @ "found record, but chance said no");
+            return false;
+        }
+    }
+    
+    return false;
+}
+
+function int GetDifficultyMode()
 {
 	local Controller C;
 	local Inventory Inv;
     local int MinLevel;
     local int MaxLevel;     // don't currently need, but may do in the future if we do an easy wave setup
     local int NumPlayers;
-    local int x;
+    local int x; 
 
-    if (BrutalConditions.Length == 0)
-        return false;
+    if (DifficultyModes.Length == 0)
+        return 0;
             
     MaxLevel = 0;
-    MinLevel = 20000;
+    MinLevel = 99999;
     NumPlayers = 0;
 
 	for (C = Level.ControllerList; C != None; C = C.NextController)
@@ -276,98 +445,90 @@ function bool AreWeBrutal()
                     }
                 }
 
-    Log("+++++ Check Brutal Num players:" @ NumPlayers @ "Minlevel:" @ Minlevel @ "Maxlevel:" @ MaxLevel);
+    Log("+++++ GetDifficultyMode NumPlayers:" @ NumPlayers @ "Minlevel:" @ Minlevel @ "Maxlevel:" @ MaxLevel);
 
-    for (x=0;x < BrutalConditions.Length;x++)
-        if (NumPlayers >= BrutalConditions[x].MinPlayers && MinLevel > BrutalConditions[x].MinLevel)   
-            return true;
+    for (x=0;x < DifficultyModes.Length;x++)
+        if (NumPlayers >= DifficultyModes[x].MinNumPlayers && MinLevel >= DifficultyModes[x].MinPlayerLevel  && MaxLevel <= DifficultyModes[x].MaxPlayerLevel)   
+            return  DifficultyModes[x].DifficultyMode;     
             
-    return false; 
+    return 0; 
+}
+
+function WaveOption GetWaveOption(int WaveNumber, int DifficultyMode)
+{
+    local int x;
+    local int i;
+    local int chance;
+    local WaveOption dummyoption;
+    
+    for (x=0; x < WaveConfig.Length; x++)
+    {
+        if (WaveConfig[x].WaveNumber == WaveNumber && WaveConfig[x].DifficultyMode == DifficultyMode)
+        {
+            // found the correct config. Now let's choose the option
+            if (WaveConfig[x].WaveOptions.Length == 1)
+            {
+                return WaveConfig[x].WaveOptions[0];
+            }
+            else
+            {
+                chance = Rand(100);
+                for (i=0; i < WaveConfig[x].WaveOptions.Length; i++)
+                {
+                    if (chance < WaveConfig[x].WaveOptions[i].Chance)
+                        return WaveConfig[x].WaveOptions[i];
+                    else
+                        chance -= WaveConfig[x].WaveOptions[i].Chance;
+                }
+                
+                // didn't find it, but should have. Just return the last one
+                Log("!!!!!!!!!! Error in GetWaveoption. Found WaveConfig but couldn't find Waveoption for WaveNumber:" @ WaveNumber @ "DifficultyMode:" @ DifficultyMode @ "Number of WaveOptions:" @ WaveConfig[x].WaveOptions.Length);
+                return WaveConfig[x].WaveOptions[WaveConfig[x].WaveOptions.Length -1];
+            }
+        }
+    }
+    
+    Log("!!!!!!!!!! Error in GetWaveOption. Couldn't find WaveConfig for WaveNumber:" @ WaveNumber @ "DifficultyMode:" @ DifficultyMode);
+    dummyOption.MonsterGroup = 1;
+    dummyOption.MaxMonsters=5;
+    return dummyoption;
 }
 
 function array< class< Monster > > GetMonstersForGroup(int MonsterGroup)
 {
 	local int i;
-    local int MaxSubGroup;
-    local int SubGroup;
     local array< class< Monster > > SelectedMonsters;
 
     SelectedMonsters.Length = 0;
-    MaxSubGroup = 0;
-	for (i=0; i < RandomMonsterClass.Length; i++)
+	for(i=0; i<MonsterGroupMonsters.Length; i++)
 	{
-        if (RandomMonsterClass[i].Group == MonsterGroup)
-            if (RandomMonsterClass[i].SubGroup > MaxSubGroup)
-                MaxSubGroup = RandomMonsterClass[i].SubGroup;    
-    }
-    if (MaxSubGroup <= 0)
-    {
-        return SelectedMonsters; // corrupt config
-    }
-        
-    if (MaxSubGroup == 1)
-        SubGroup = MaxSubGroup;
-    else
-    {
-        // randomly choose one of the subgroups
-        SubGroup = Rand(MaxSubGroup) + 1;
-    }
-    
-	for(i=0; i<RandomMonsterClass.Length; i++)
-	{
-        if (RandomMonsterClass[i].Group == MonsterGroup && RandomMonsterClass[i].SubGroup == SubGroup)
-                SelectedMonsters[SelectedMonsters.Length] = RandomMonsterClass[i].MonsterClass;    
+        if (MonsterGroupMonsters[i].MonsterGroup == MonsterGroup)
+                SelectedMonsters[SelectedMonsters.Length] = MonsterGroupMonsters[i].MonsterClass;    
     }
     
     return SelectedMonsters;
 }
 
-function WaveRandomize()
+function ConfigureWave(int WaveNum)
 {
 	//This function handles the randomization of each specific wave
 
 	local int i;
-    local int MonsterGroup;
+    local int DifficultyMode;
+    local WaveOption SelectedWaveOption;
     local array< class< Monster > > SelectedMonsters;
-    
-    MonsterGroup = Waves[Invasion.WaveNum].RandomMonsterGroup;
-    
-    SelectedMonsters = GetMonstersForGroup(MonsterGroup);
-    
-    // Log("+++++ random wave selected for wave" @ Invasion.WaveNum @ "using group" @ MonsterGroup @ "returned" @ SelectedMonsters.Length @ "monsters");
-    
-    if (SelectedMonsters.Length == 0)
-        return;
-        
-	Invasion.WaveNumClasses=0;
-	for(i=0;i<16;i++)
-	{
-		Invasion.WaveMonsterClass[Invasion.WaveNumClasses] = SelectedMonsters[Rand(SelectedMonsters.Length)];
-		Invasion.WaveNumClasses++;
-	}
-        
-    BroadcastLocalizedMessage(class'WaveRandomizedMessage', Waves[Invasion.WaveNum].RandomizedMessageSwitch);
-	Invasion.Waves[Invasion.WaveNum].WaveMaxMonsters = Waves[Invasion.WaveNum].RandomizedWaveMaxMonsters;
-	Invasion.MaxMonsters = Waves[Invasion.WaveNum].RandomizedWaveMaxMonsters;
-	Invasion.Waves[Invasion.WaveNum].WaveDuration = Waves[Invasion.WaveNum].RandomizedWaveDuration;
-}
 
-function WaveBrutalRandomize()
-{
-	//This function handles the randomization of each specific wave, but where the player levels are high
-	
-	local int i;
-    local int MonsterGroup;
-    local array< class< Monster > > SelectedMonsters;
-    
-    MonsterGroup = Waves[Invasion.WaveNum].BrutalMonsterGroup;
-    
-    SelectedMonsters = GetMonstersForGroup(MonsterGroup);
-    
-    // Log("+++++ Brutal wave selected for wave" @ Invasion.WaveNum @ "using group" @ MonsterGroup @ "returned" @ SelectedMonsters.Length @ "monsters");
+    DifficultyMode = GetDifficultyMode();
+    SelectedWaveOption = GetWaveOption(WaveNum+1, DifficultyMode);
+    SelectedMonsters = GetMonstersForGroup(SelectedWaveOption.MonsterGroup);
+
+    Log("+++++ Wave selected for wave" @ WaveNum @ "difficulty mode" @ DifficultyMode @ "using group" @ SelectedWaveOption.MonsterGroup @ "returned" @ SelectedMonsters.Length @ "monsters");
     
     if (SelectedMonsters.Length == 0)
+    {
+        Log("!!!!!!!!!! Error in ConfigureWave - no monsters selected for wave" @ WaveNum @ "using group" @ SelectedWaveOption.MonsterGroup );
         return;
+    }
         
 	Invasion.WaveNumClasses=0;
 	for(i=0;i<16;i++)
@@ -375,164 +536,41 @@ function WaveBrutalRandomize()
 		Invasion.WaveMonsterClass[Invasion.WaveNumClasses] = SelectedMonsters[Rand(SelectedMonsters.Length)];
 		Invasion.WaveNumClasses++;
 	}
-        
-    BroadcastLocalizedMessage(class'WaveRandomizedMessage', 100);
-	Invasion.Waves[Invasion.WaveNum].WaveMaxMonsters = Waves[Invasion.WaveNum].RandomizedWaveMaxMonsters;
-	Invasion.MaxMonsters = Waves[Invasion.WaveNum].BrutalWaveMaxMonsters;
-	Invasion.Waves[Invasion.WaveNum].WaveDuration = Waves[Invasion.WaveNum].RandomizedWaveDuration;
+
+    BroadcastLocalizedMessage(class'WaveRandomizedMessage', SelectedWaveOption.MonsterGroup);
+   
+	Invasion.Waves[Invasion.WaveNum].WaveMaxMonsters = SelectedWaveOption.MaxMonsters;
+	Invasion.MaxMonsters = SelectedWaveOption.MaxMonsters;
+	// Invasion.Waves[Invasion.WaveNum].WaveDuration = Waves[Invasion.WaveNum].RandomizedWaveDuration;
 }
 
 function WaveBonus()
 {
 	local int i;
+    local array< class< Monster > > SelectedMonsters;
 
-	if (Invasion.WaveNum == 0)
+    SelectedMonsters = GetMonstersForGroup(BonusMonsterGroupNext);
+
+    Log("+++++ Wave selected for bonus wave" @ WaveNum @ "using group" @ BonusMonsterGroupNext @ "returned" @ SelectedMonsters.Length @ "monsters");
+    
+    if (SelectedMonsters.Length == 0)
+    {
+        Log("!!!!!!!!!! Error in ConfigureWave - no monsters selected for bonus wave" @ WaveNum @ "using group" @ BonusMonsterGroupNext );
+        return;
+    }
+        
+	Invasion.WaveNumClasses=0;
+	for(i=0;i<16;i++)
 	{
-		Invasion.WaveNumClasses=0;
-		for(i=0;i<16;i++)
-		{
-			Invasion.WaveMonsterClass[Invasion.WaveNumClasses] = Wave1BonusMonsterClass[Rand(Wave1BonusMonsterClass.Length)];
-			Invasion.WaveNumClasses++;
-		}
+		Invasion.WaveMonsterClass[Invasion.WaveNumClasses] = SelectedMonsters[Rand(SelectedMonsters.Length)];
+		Invasion.WaveNumClasses++;
 	}
-	else if (Invasion.WaveNum == 1)
-	{
-		Invasion.WaveNumClasses=0;
-		for(i=0;i<16;i++)
-		{
-			Invasion.WaveMonsterClass[Invasion.WaveNumClasses] = Wave2BonusMonsterClass[Rand(Wave2BonusMonsterClass.Length)];
-			Invasion.WaveNumClasses++;
-		}
-	}
-	else if (Invasion.WaveNum == 2)
-	{
-		Invasion.WaveNumClasses=0;
-		for(i=0;i<16;i++)
-		{
-			Invasion.WaveMonsterClass[Invasion.WaveNumClasses] = Wave3BonusMonsterClass[Rand(Wave3BonusMonsterClass.Length)];
-			Invasion.WaveNumClasses++;
-		}
-	}
-	else if (Invasion.WaveNum == 3)
-	{
-		Invasion.WaveNumClasses=0;
-		for(i=0;i<16;i++)
-		{
-			Invasion.WaveMonsterClass[Invasion.WaveNumClasses] = Wave4BonusMonsterClass[Rand(Wave4BonusMonsterClass.Length)];
-			Invasion.WaveNumClasses++;
-		}
-	}
-	else if (Invasion.WaveNum == 4)
-	{
-		Invasion.WaveNumClasses=0;
-		for(i=0;i<16;i++)
-		{
-			Invasion.WaveMonsterClass[Invasion.WaveNumClasses] = Wave5BonusMonsterClass[Rand(Wave5BonusMonsterClass.Length)];
-			Invasion.WaveNumClasses++;
-		}
-	}
-	else if (Invasion.WaveNum == 5)
-	{
-		Invasion.WaveNumClasses=0;
-		for(i=0;i<16;i++)
-		{
-			Invasion.WaveMonsterClass[Invasion.WaveNumClasses] = Wave6BonusMonsterClass[Rand(Wave6BonusMonsterClass.Length)];
-			Invasion.WaveNumClasses++;
-		}
-	}
-	else if (Invasion.WaveNum == 6)
-	{
-		Invasion.WaveNumClasses=0;
-		for(i=0;i<16;i++)
-		{
-			Invasion.WaveMonsterClass[Invasion.WaveNumClasses] = Wave7BonusMonsterClass[Rand(Wave7BonusMonsterClass.Length)];
-			Invasion.WaveNumClasses++;
-		}
-	}
-	else if (Invasion.WaveNum == 7)
-	{
-		Invasion.WaveNumClasses=0;
-		for(i=0;i<16;i++)
-		{
-			Invasion.WaveMonsterClass[Invasion.WaveNumClasses] = Wave8BonusMonsterClass[Rand(Wave8BonusMonsterClass.Length)];
-			Invasion.WaveNumClasses++;
-		}
-	}
-	else if (Invasion.WaveNum == 8)
-	{
-		Invasion.WaveNumClasses=0;
-		for(i=0;i<16;i++)
-		{
-			Invasion.WaveMonsterClass[Invasion.WaveNumClasses] = Wave9BonusMonsterClass[Rand(Wave9BonusMonsterClass.Length)];
-			Invasion.WaveNumClasses++;
-		}
-	}
-	else if (Invasion.WaveNum == 9)
-	{
-		Invasion.WaveNumClasses=0;
-		for(i=0;i<16;i++)
-		{
-			Invasion.WaveMonsterClass[Invasion.WaveNumClasses] = Wave10BonusMonsterClass[Rand(Wave10BonusMonsterClass.Length)];
-			Invasion.WaveNumClasses++;
-		}
-	}
-	else if (Invasion.WaveNum == 10)
-	{
-		Invasion.WaveNumClasses=0;
-		for(i=0;i<16;i++)
-		{
-			Invasion.WaveMonsterClass[Invasion.WaveNumClasses] = Wave11BonusMonsterClass[Rand(Wave11BonusMonsterClass.Length)];
-			Invasion.WaveNumClasses++;
-		}
-	}
-	else if (Invasion.WaveNum == 11)
-	{
-		Invasion.WaveNumClasses=0;
-		for(i=0;i<16;i++)
-		{
-			Invasion.WaveMonsterClass[Invasion.WaveNumClasses] = Wave12BonusMonsterClass[Rand(Wave12BonusMonsterClass.Length)];
-			Invasion.WaveNumClasses++;
-		}
-	}
-	else if (Invasion.WaveNum == 12)
-	{
-		Invasion.WaveNumClasses=0;
-		for(i=0;i<16;i++)
-		{
-			Invasion.WaveMonsterClass[Invasion.WaveNumClasses] = Wave13BonusMonsterClass[Rand(Wave13BonusMonsterClass.Length)];
-			Invasion.WaveNumClasses++;
-		}
-	}
-	else if (Invasion.WaveNum == 13)
-	{
-		Invasion.WaveNumClasses=0;
-		for(i=0;i<16;i++)
-		{
-			Invasion.WaveMonsterClass[Invasion.WaveNumClasses] = Wave14BonusMonsterClass[Rand(Wave14BonusMonsterClass.Length)];
-			Invasion.WaveNumClasses++;
-		}
-	}
-	else if (Invasion.WaveNum == 14)
-	{
-		Invasion.WaveNumClasses=0;
-		for(i=0;i<16;i++)
-		{
-			Invasion.WaveMonsterClass[Invasion.WaveNumClasses] = Wave15BonusMonsterClass[Rand(Wave15BonusMonsterClass.Length)];
-			Invasion.WaveNumClasses++;
-		}
-	}
-	else if (Invasion.WaveNum == 15)
-	{
-		Invasion.WaveNumClasses=0;
-		for(i=0;i<16;i++)
-		{
-			Invasion.WaveMonsterClass[Invasion.WaveNumClasses] = Wave16BonusMonsterClass[Rand(Wave16BonusMonsterClass.Length)];
-			Invasion.WaveNumClasses++;
-		}
-	}
-	Invasion.Waves[Invasion.WaveNum].WaveMaxMonsters = Waves[Invasion.WaveNum].BonusWaveMaxMonsters;
-	Invasion.MaxMonsters = Waves[Invasion.WaveNum].BonusWaveMaxMonsters;
-	Invasion.Waves[Invasion.WaveNum].WaveDuration = Waves[Invasion.WaveNum].BonusWaveDuration;
+    
+    BroadcastLocalizedMessage(class'WaveRandomizedMessage', BonusMonsterGroupNext);
+
+	Invasion.Waves[Invasion.WaveNum].WaveMaxMonsters = MaxBonusMonstersNext;
+	Invasion.MaxMonsters = MaxBonusMonstersNext;
+	// Invasion.Waves[Invasion.WaveNum].WaveDuration = Waves[Invasion.WaveNum].BonusWaveDuration;
 }
 
 function ResetPlayerForBoss()
@@ -691,22 +729,6 @@ function RewardXP()
 
 defaultproperties
 {
-     Wave1BonusMonsterClass(0)=Class'SkaarjPack.SkaarjPupae'
-     Wave2BonusMonsterClass(0)=Class'SkaarjPack.SkaarjPupae'
-     Wave3BonusMonsterClass(0)=Class'SkaarjPack.SkaarjPupae'
-     Wave4BonusMonsterClass(0)=Class'SkaarjPack.SkaarjPupae'
-     Wave5BonusMonsterClass(0)=Class'SkaarjPack.SkaarjPupae'
-     Wave6BonusMonsterClass(0)=Class'SkaarjPack.SkaarjPupae'
-     Wave7BonusMonsterClass(0)=Class'SkaarjPack.SkaarjPupae'
-     Wave8BonusMonsterClass(0)=Class'SkaarjPack.SkaarjPupae'
-     Wave9BonusMonsterClass(0)=Class'SkaarjPack.SkaarjPupae'
-     Wave10BonusMonsterClass(0)=Class'SkaarjPack.SkaarjPupae'
-     Wave11BonusMonsterClass(0)=Class'SkaarjPack.SkaarjPupae'
-     Wave12BonusMonsterClass(0)=Class'SkaarjPack.SkaarjPupae'
-     Wave13BonusMonsterClass(0)=Class'SkaarjPack.SkaarjPupae'
-     Wave14BonusMonsterClass(0)=Class'SkaarjPack.SkaarjPupae'
-     Wave15BonusMonsterClass(0)=Class'SkaarjPack.SkaarjPupae'
-     Wave16BonusMonsterClass(0)=Class'SkaarjPack.SkaarjPupae'
      BunnyMonsterClass(0)=Class'SkaarjPack.SkaarjPupae'
      SafeMonsterClass(0)=Class'SkaarjPack.SkaarjPupae'
 	 BossMonsterClass(0)=Class'SkaarjPack.SkaarjPupae'
@@ -719,22 +741,6 @@ defaultproperties
 	 BossSpawnAttempt=10
      BunnyWaveMaxMonsters=24
      BunnyWaveDuration=90
-     Waves(0)=(RandomizedWaveMaxMonsters=16,RandomizedWaveDuration=80,BonusWaveMaxMonsters=1,BonusWaveDuration=80)
-     Waves(1)=(RandomizedWaveMaxMonsters=16,RandomizedWaveDuration=80,BonusWaveMaxMonsters=1,BonusWaveDuration=80)
-     Waves(2)=(RandomizedWaveMaxMonsters=16,RandomizedWaveDuration=80,BonusWaveMaxMonsters=1,BonusWaveDuration=80)
-     Waves(3)=(RandomizedWaveMaxMonsters=16,RandomizedWaveDuration=80,BonusWaveMaxMonsters=1,BonusWaveDuration=80)
-     Waves(4)=(RandomizedWaveMaxMonsters=16,RandomizedWaveDuration=80,BonusWaveMaxMonsters=1,BonusWaveDuration=80)
-     Waves(5)=(RandomizedWaveMaxMonsters=32,RandomizedWaveDuration=80,BonusWaveMaxMonsters=1,BonusWaveDuration=80)
-     Waves(6)=(RandomizedWaveMaxMonsters=5,RandomizedWaveDuration=80,BonusWaveMaxMonsters=1,BonusWaveDuration=80)
-     Waves(7)=(RandomizedWaveMaxMonsters=12,RandomizedWaveDuration=80,BonusWaveMaxMonsters=1,BonusWaveDuration=80)
-     Waves(8)=(RandomizedWaveMaxMonsters=6,RandomizedWaveDuration=80,BonusWaveMaxMonsters=1,BonusWaveDuration=80)
-     Waves(9)=(RandomizedWaveMaxMonsters=24,RandomizedWaveDuration=80,BonusWaveMaxMonsters=1,BonusWaveDuration=80)
-     Waves(10)=(RandomizedWaveMaxMonsters=16,RandomizedWaveDuration=80,BonusWaveMaxMonsters=1,BonusWaveDuration=80)
-     Waves(11)=(RandomizedWaveMaxMonsters=24,RandomizedWaveDuration=80,BonusWaveMaxMonsters=1,BonusWaveDuration=80)
-     Waves(12)=(RandomizedWaveMaxMonsters=20,RandomizedWaveDuration=80,BonusWaveMaxMonsters=1,BonusWaveDuration=80)
-     Waves(13)=(RandomizedWaveMaxMonsters=16,RandomizedWaveDuration=80,BonusWaveMaxMonsters=1,BonusWaveDuration=80)
-     Waves(14)=(RandomizedWaveMaxMonsters=24,RandomizedWaveDuration=80,BonusWaveMaxMonsters=1,BonusWaveDuration=80)
-     Waves(15)=(RandomizedWaveMaxMonsters=16,RandomizedWaveDuration=80,BonusWaveMaxMonsters=1,BonusWaveDuration=80)
      bAddToServerPackages=True
      GroupName="WaveRandomizer"
      FriendlyName="Wave Randomizer"
