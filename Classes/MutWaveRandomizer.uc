@@ -69,6 +69,7 @@ var config int BossHealthAddPerPlayer;
 var bool BossSpawned;
 var config byte BossWaveDuration;
 var config int BossSpawnAttempt;
+var config bool CheckConfig;
 const BOSSWAVEMAXMONSTERS = 0;
 
 //Bunny wave variables
@@ -106,13 +107,14 @@ event PostBeginPlay()
 		SetTimer(1, True);
 		WaveNum = -1; 	//Initialize the WaveNum to -1. This is set so that Timer() can check this condition as true for the first wave of this game.
 	}
-    
-    CheckConfig();
+
+    if (CheckConfig)
+        CheckConfiguration();
     
 	Super.PostBeginPlay();
 }
 
-function CheckConfig()
+function CheckConfiguration()
 {
     // the satore config is quite complex. let's do some simple checks for consistency
 	local int i;
@@ -226,6 +228,143 @@ function CheckConfig()
     // check all 16 waves for each difficultymode
     if ((MaxDifficultyMode + 1) * 16 != BonusWaveConfig.Length)
         Log("!!!!!!!! WaveRandomizer Config Check Warning - possible mismatch in number of BonusWaveConfig records - BonusWaveConfig" @ BonusWaveConfig.Length @ "DifficutyModes" @ MaxDifficultyMode + 1);
+        
+    ListWaveDifficulty();
+}
+
+function ListWaveDifficulty()
+{
+    local int i;
+    local int j;
+    local int x;
+    local int PointsSum;
+    local int MonsterCount;
+    local int MonsterGroup;
+    local float AveragePoints;
+    local int WaveDifficulty;
+    local int MaxMonsters;
+    local int MaxDifficultyMode;
+    local int d;
+    local int ScoringValue;
+    // can't get hold of the ElementalConfigure modifiers here so need to hard code
+    local float EarthScoreMultiplier;
+    local float IceScoreMultiplier;
+    local float FireScoreMultiplier;
+    
+    EarthScoreMultiplier = 2.35;
+    IceScoreMultiplier = 2.00;
+    FireScoreMultiplier = 2.00;
+
+    Log("------------   Wave Configuration  -------------");    
+    
+    MaxDifficultyMode = -1;
+ 	for(i=0; i< DifficultyModes.Length; i++)
+	{
+        if (DifficultyModes[i].DifficultyMode > MaxDifficultyMode)
+            MaxDifficultyMode =  DifficultyModes[i].DifficultyMode;
+    }
+
+    for (d=0; d <= MaxDifficultyMode; d++)
+    {
+        Log("DificultyMode" @ d);
+    	for(i=0; i < WaveConfig.Length; i++)
+    	{
+            if (WaveConfig[i].DifficultyMode == d)
+            {
+                for (j=0; j < WaveConfig[i].WaveOptions.Length; j++)
+                {
+                    if (WaveConfig[i].WaveOptions[j].Chance > 0)
+                    {
+                        MaxMonsters =  WaveConfig[i].WaveOptions[j].MaxMonsters;
+                        MonsterGroup = WaveConfig[i].WaveOptions[j].MonsterGroup;
+                        
+                        PointsSum = 0;
+                        MonsterCount = 0;
+                     	for(x=0; x < MonsterGroupMonsters.Length; x++)
+                    	{
+                            if (MonsterGroupMonsters[x].MonsterGroup == MonsterGroup)
+                            {
+                                MonsterCount++;
+                                ScoringValue = MonsterGroupMonsters[x].MonsterClass.default.ScoringValue;
+                                if (Left(MonsterGroupMonsters[x].MonsterClass.Name,5) == "Earth")
+                                    ScoringValue *= EarthScoreMultiplier;
+                                if (Left(MonsterGroupMonsters[x].MonsterClass.Name,4) == "Fire")
+                                    ScoringValue *= FireScoreMultiplier;
+                                if (Left(MonsterGroupMonsters[x].MonsterClass.Name,3) == "Ice")
+                                    ScoringValue *= IceScoreMultiplier;
+                                
+                                PointsSum += ScoringValue;
+                                // Log("        MonsterGroup" @ MonsterGroup @ "monster" @ MonsterGroupMonsters[x].MonsterClass @ "name:" @ MonsterGroupMonsters[x].MonsterClass.Name @ "points:" @ MonsterGroupMonsters[x].MonsterClass.default.ScoringValue @ "adjusted" @ ScoringValue);
+                                // Log(MonsterGroupMonsters[x].MonsterClass @ "points:" @ MonsterGroupMonsters[x].MonsterClass.default.ScoringValue);
+                            }
+                        }
+                        if (MonsterCount == 0)
+                        {
+                            AveragePoints = 0.0;
+                            WaveDifficulty = 0;
+                        }
+                        else
+                        {
+                            AveragePoints = PointsSum * 1.0/MonsterCount;
+                            WaveDifficulty = AveragePoints * MaxMonsters;
+                        }
+                        
+                        Log("Wave" @ WaveConfig[i].WaveNumber @ "DifficultyMode" @ d @ "MonsterGroup" @ MonsterGroup @ "Chance" @ WaveConfig[i].WaveOptions[j].Chance @ "MaxMonsters" @ MaxMonsters @ "Average points" @ AveragePoints @ "WaveDifficulty" @ WaveDifficulty);
+                    }
+                }
+            }
+        }
+    
+    	for(i=0; i < BonusWaveConfig.Length; i++)
+    	{
+            if (BonusWaveConfig[i].DifficultyMode == d)
+            {
+                for (j=0; j < BonusWaveConfig[i].WaveOptions.Length; j++)
+                {
+                   if (BonusWaveConfig[i].WaveOptions[j].Chance > 0)
+                    {
+                        MaxMonsters =  BonusWaveConfig[i].WaveOptions[j].MaxMonsters;
+                        MonsterGroup = BonusWaveConfig[i].WaveOptions[j].MonsterGroup;
+                        
+                        PointsSum = 0;
+                        MonsterCount = 0;
+                     	for(x=0; x < MonsterGroupMonsters.Length; x++)
+                    	{
+                            if (MonsterGroupMonsters[x].MonsterGroup == MonsterGroup)
+                            {
+                                MonsterCount++;
+                                ScoringValue = MonsterGroupMonsters[x].MonsterClass.default.ScoringValue;
+                                if (Left(MonsterGroupMonsters[x].MonsterClass.Name,5) == "Earth")
+                                    ScoringValue *= EarthScoreMultiplier;
+                                if (Left(MonsterGroupMonsters[x].MonsterClass.Name,4) == "Fire")
+                                    ScoringValue *= FireScoreMultiplier;
+                                if (Left(MonsterGroupMonsters[x].MonsterClass.Name,3) == "Ice")
+                                    ScoringValue *= IceScoreMultiplier;
+                                
+                                PointsSum += ScoringValue;
+                                // Log("        MonsterGroup" @ MonsterGroup @ "monster" @ MonsterGroupMonsters[x].MonsterClass @ "points:" @ MonsterGroupMonsters[x].MonsterClass.default.ScoringValue);
+                                // Log(MonsterGroupMonsters[x].MonsterClass @ "points:" @ MonsterGroupMonsters[x].MonsterClass.default.ScoringValue);
+                            }
+                        }
+                        if (MonsterCount == 0)
+                        {
+                            AveragePoints = 0.0;
+                            WaveDifficulty = 0;
+                        }
+                        else
+                        {
+                            AveragePoints = PointsSum * 1.0/MonsterCount;
+                            WaveDifficulty = AveragePoints * MaxMonsters;
+                        }
+                        
+                        Log("BonusWave" @ BonusWaveConfig[i].WaveNumber @ "DifficultyMode" @ d @ "MonsterGroup" @ MonsterGroup @ "Chance" @ BonusWaveConfig[i].WaveOptions[j].Chance @ "MaxMonsters" @ MaxMonsters @ "Average points" @ AveragePoints @ "WaveDifficulty" @ WaveDifficulty);
+                    }
+                }
+            }
+        }
+    }
+    
+    Log("------------   End of Wave Configuration  -------------");    
 }
 
 function Timer()
@@ -398,14 +537,16 @@ function bool IsBonusWaveWaiting(int WaveNum, out int MaxMonsters, out int Monst
                 {
                     MaxMonsters = BonusWaveConfig[x].WaveOptions[i].MaxMonsters;
                     MonsterGroup = BonusWaveConfig[x].WaveOptions[i].MonsterGroup;
-                    Log("+++++ IsBonusWaveWaiting checking for Bonus Wave for Wave number:" @ WaveNum @ "found bonus wave MonsterGroup:" @ MonsterGroup);
+                    if (CheckConfig)
+                        Log("+++++ IsBonusWaveWaiting checking for Bonus Wave for Wave number:" @ WaveNum @ "found bonus wave MonsterGroup:" @ MonsterGroup);
                    return true;
                 }
                 else
                     chance -= BonusWaveConfig[x].WaveOptions[i].Chance;
             }
 
-            Log("+++++ IsBonusWaveWaiting checking for Bonus Wave for Wave number:" @ WaveNum @ "found record, but chance said no");
+            if (CheckConfig)
+                Log("+++++ IsBonusWaveWaiting checking for Bonus Wave for Wave number:" @ WaveNum @ "found record, but chance said no");
             return false;
         }
     }
@@ -445,7 +586,8 @@ function int GetDifficultyMode()
                     }
                 }
 
-    Log("+++++ GetDifficultyMode NumPlayers:" @ NumPlayers @ "Minlevel:" @ Minlevel @ "Maxlevel:" @ MaxLevel);
+    if (CheckConfig)
+        Log("+++++ GetDifficultyMode NumPlayers:" @ NumPlayers @ "Minlevel:" @ Minlevel @ "Maxlevel:" @ MaxLevel);
 
     for (x=0;x < DifficultyModes.Length;x++)
         if (NumPlayers >= DifficultyModes[x].MinNumPlayers && MinLevel >= DifficultyModes[x].MinPlayerLevel  && MaxLevel <= DifficultyModes[x].MaxPlayerLevel)   
@@ -522,7 +664,8 @@ function ConfigureWave(int WaveNum)
     SelectedWaveOption = GetWaveOption(WaveNum+1, DifficultyMode);
     SelectedMonsters = GetMonstersForGroup(SelectedWaveOption.MonsterGroup);
 
-    Log("+++++ Wave selected for wave" @ WaveNum @ "difficulty mode" @ DifficultyMode @ "using group" @ SelectedWaveOption.MonsterGroup @ "returned" @ SelectedMonsters.Length @ "monsters");
+    if (CheckConfig)
+        Log("+++++ Wave selected for wave" @ WaveNum @ "difficulty mode" @ DifficultyMode @ "using group" @ SelectedWaveOption.MonsterGroup @ "returned" @ SelectedMonsters.Length @ "monsters");
     
     if (SelectedMonsters.Length == 0)
     {
@@ -551,7 +694,8 @@ function WaveBonus()
 
     SelectedMonsters = GetMonstersForGroup(BonusMonsterGroupNext);
 
-    Log("+++++ Wave selected for bonus wave" @ WaveNum @ "using group" @ BonusMonsterGroupNext @ "returned" @ SelectedMonsters.Length @ "monsters");
+    if (CheckConfig)
+        Log("+++++ Wave selected for bonus wave" @ WaveNum @ "using group" @ BonusMonsterGroupNext @ "returned" @ SelectedMonsters.Length @ "monsters");
     
     if (SelectedMonsters.Length == 0)
     {
@@ -729,6 +873,7 @@ function RewardXP()
 
 defaultproperties
 {
+     CheckConfig=true
      BunnyMonsterClass(0)=Class'SkaarjPack.SkaarjPupae'
      SafeMonsterClass(0)=Class'SkaarjPack.SkaarjPupae'
 	 BossMonsterClass(0)=Class'SkaarjPack.SkaarjPupae'
