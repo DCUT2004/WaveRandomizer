@@ -873,7 +873,7 @@ function RewardXP()
 
 defaultproperties
 {
-     CheckConfig=true
+     CheckConfig=false
      BunnyMonsterClass(0)=Class'SkaarjPack.SkaarjPupae'
      SafeMonsterClass(0)=Class'SkaarjPack.SkaarjPupae'
 	 BossMonsterClass(0)=Class'SkaarjPack.SkaarjPupae'
